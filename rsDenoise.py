@@ -35,7 +35,12 @@ def main():
   config.nParcels = args.nParcels
   config.overwrite = args.overwrite
   vFC = args.vFC
+  ### <raygon: Aug 2, 2023; extend to csv formatted subject file>
   subjects = np.loadtxt(args.input,dtype=str,ndmin=1)
+  if args.input.endswith('.csv'):
+    subjects = subjects[1:]
+  # ipdb.set_trace()
+  ### </raygon: Aug 2, 2023; extend to csv formatted subject file>
   if not 'sub-' in subjects[0]: subjects = np.array(['sub-' + s for s in subjects])
   config.pipelineName      = args.pipeline 
   config.Operations        = config.operationDict[config.pipelineName]
