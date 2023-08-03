@@ -1,3 +1,5 @@
+import pdb as ipdb
+
 import sys, argparse
 sys.path.append('/Shared/klie/data/code/rsDenoise/')
 from fmriprep_helpers import *
@@ -22,9 +24,53 @@ config.n_contiguous = 1 # 1 does not interpolate over timepoint e.g 5
 
 #####################################################################
 
+def _hook_set_surface_filename_convention(args):
+  """
+  NEW/FCA: sub-DK0001_task-rest_run-1_{hemi-L_space-fsaverage6}_bold.func.gii
+  OLD/ABIDE: sub-DK0001_task-rest_run-1_space-{fsaverage6_hemi-R}_bold.func.gii
+  """
+  if isinstance(args.surface, str):
+    args.surface = [args.surface,]
+  else:
+    pass
+
+  def _parse_surface_filename(surface_filename):
+    x_split = surface_filename.split('_')
+    x_parsed = {'hemi': None, 'space':[]}
+    for x in x_split:
+      if x.lower().startswith('hemi'):
+        x_parsed['hemi'] = x
+      else: #TODO: are these the only two fields that can occur in the string?
+        x_parsed['space'].append(x)
+    x_parsed['space'] = '_'.join(x_parsed['space'])
+    return x_parsed
+  surface_parsed = [_parse_surface_filename(x) for x in args.surface]
+
+  surf_template_new = "{hemi}_space-{space}"
+  surf_template_old = "space-{space}_{hemi}"
+  # dict([x.split('-') for x in 'space-fsaverage6_hemi-R'.split('_')])
+
+  # ipdb.set_trace()
+
+  # USE_NEW_SURFACE_FORMAT = False
+  USE_NEW_SURFACE_FORMAT = args.use_new_surface_format
+  surface_format = '<NEW_FORMAT (FCA)>' if USE_NEW_SURFACE_FORMAT else '<OLD_FORMAT (ABIDE)>'
+  out = []
+  for x in surface_parsed:
+    print('\t', x)
+    if USE_NEW_SURFACE_FORMAT:
+      surface_filename = surf_template_new.format(**x)
+    else:
+      surface_filename = surf_template_old.format(**x)
+    out.append(surface_filename)
+  print(f"FORMATTED SURFACE FILENAME AS {surface_format} -->\n\t{out}")
+  return out
+
+
 def main():
   parser = create_parser()
   args = parser.parse_args()
+
   config.DATADIR = args.datadir
   config.outDir = args.output
   config.isCifti = args.cifti
@@ -35,6 +81,12 @@ def main():
   config.nParcels = args.nParcels
   config.overwrite = args.overwrite
   vFC = args.vFC
+
+  ### <raygon: Aug 2, 2023; normalize surface input across fmriprep versions>
+  surface_formatted = _hook_set_surface_filename_convention(args)
+  args.surface = surface_formatted
+  ### </raygon: Aug 2, 2023; normalize surface input across fmriprep versions>
+
   ### <raygon: Aug 2, 2023; extend to csv formatted subject file>
   subjects = np.loadtxt(args.input,dtype=str,ndmin=1)
   if args.input.endswith('.csv'):
@@ -268,6 +320,10 @@ def create_parser():
               default='MNI152NLin6Asym_res-2', help="""Space for volumetric data or volumetric seed.""")
   parser.add_argument('-surf', '--surface', metavar='SURFACE', type=str, nargs='+',
             default=['fsaverage6_hemi-L','fsaverage6_hemi-R'], help="""Space for surface data. More than one space can be specified.""")
+
+  parser.add_argument('-use_new_surface_format', '--use_new_surface_format', action='store_true', default=False,
+            help="""Hack to switch surface filename convention for fmriprep.""")
+
   parser.add_argument('-parcelName', '--parcellationName', metavar='PARCELLATION_NAME', type=str,
             default=None, help="""Parcellation name, used in output file names. Only required for parcel-wise FC. 
             To be specified together with -parcelFile and -parcelName""")
@@ -304,7 +360,6 @@ def create_parser():
   
 
 if __name__ == "__main__":
-
   main()
 
 

@@ -2053,8 +2053,10 @@ def parcellate(overwrite=False):
                 smoothed_file = config.fmriFile.replace(config.ext,'_smooth_{}fwhm{}'.format(config.smoothing, config.ext)).replace(buildpath(),outpath())
                 if not op.isfile(smoothed_file):
                     hm = 'lh' if this_hemi == 'hemi-L' else 'rh'
+                    # cmd = 'mri_surf2surf --hemi {} --s {} --sval {} --cortex --fwhm-trg {} --tval {}'.format(
+                       # hm, config.surface.split('_')[0],config.fmriFile, config.smoothing, smoothed_file)
                     cmd = 'mri_surf2surf --hemi {} --s {} --sval {} --cortex --fwhm-trg {} --tval {}'.format(
-                       hm, config.surface.split('_')[0],config.fmriFile, config.smoothing, smoothed_file)
+                       hm, _parse_surface_str(config.surface)['space'],config.fmriFile, config.smoothing, smoothed_file)
                     call(cmd, shell=True)
                 giiData = nib.load(smoothed_file)
             else:
@@ -2118,8 +2120,10 @@ def parcellate(overwrite=False):
                 smoothed_file = config.fmriFile_dn.replace(config.ext,'_smooth_{}fwhm{}'.format(config.smoothing, config.ext))
                 if not op.isfile(smoothed_file):
                     hm = 'lh' if this_hemi == 'hemi-L' else 'rh'
+                    # cmd = 'mri_surf2surf --hemi {} --s {} --sval {} --cortex --fwhm-trg {} --tval {}'.format(
+                       # hm, config.surface.split('_')[0],config.fmriFile_dn, config.smoothing, smoothed_file)
                     cmd = 'mri_surf2surf --hemi {} --s {} --sval {} --cortex --fwhm-trg {} --tval {}'.format(
-                       hm, config.surface.split('_')[0],config.fmriFile_dn, config.smoothing, smoothed_file)
+                       hm, _parse_surface_str(config.surface)['space'],config.fmriFile_dn, config.smoothing, smoothed_file)
                     call(cmd, shell=True)
                 giiData = nib.load(smoothed_file)
             else:
@@ -2213,7 +2217,7 @@ def getAllFC(subjectList,runs,sessions=None,parcellation=None,operations=None,ou
                                 inputFile = op.join(config.DATADIR, config.fmriFileTemplate.replace('#fMRIrun#', config.fmriRun).replace('#fMRIsession#', config.session).replace('#subjectID#', config.subject))
                             else:
                                 if isCifti:
-                                    inputFile = op.join(buildpath(), config.subject+'_'+config.session+'_'+config.fmriRun+'_space-'+config.surface+'_bold.dtseries.nii')
+                                    inputFile = op.join(buildpath(), config.subject+'_'+config.session+'_'+config.fmriRun+'_'+config.surface+'_bold.dtseries.nii')
                                 else:
                                     inputFile = op.join(buildpath(), config.subject+'_'+config.session+'_'+config.fmriRun+'_space-'+config.space+'_desc-preproc_bold.nii.gz')
                             outputPath = outpath() if outputDir is None else outputDir
@@ -2251,7 +2255,7 @@ def getAllFC(subjectList,runs,sessions=None,parcellation=None,operations=None,ou
                             inputFile = op.join(config.DATADIR, config.fmriFileTemplate.replace('#fMRIrun#', config.fmriRun).replace('#fMRIsession#', config.session).replace('#subjectID#', config.subject))
                         else:
                             if isCifti:
-                                inputFile = op.join(buildpath(), config.subject+'_'+config.fmriRun+'_space-'+config.surface+'_bold.dtseries.nii')
+                                inputFile = op.join(buildpath(), config.subject+'_'+config.fmriRun+'_'+config.surface+'_bold.dtseries.nii')
                             else:
                                 inputFile = op.join(buildpath(), config.subject+'_'+config.fmriRun+'_space-'+config.space+'_desc-preproc_bold.nii.gz')
                         outputPath = outpath() if (outputDir is None) else outputDir
@@ -3039,8 +3043,8 @@ def runPipeline():
     rstring = ''.join(random.SystemRandom().choice(string.ascii_lowercase +string.ascii_uppercase + string.digits) for _ in range(8))
     outDir  = outpath()
     prefix = config.session+'_' if  hasattr(config,'session')  else ''
-    space = config.surface if (config.isGifti or config.isCifti) else config.space
-    outFile = config.subject+'_'+prefix+config.fmriRun+'_space-'+space+'_prepro_'+rstring
+    space = config.surface if (config.isGifti or config.isCifti) else f"space-{config.space}"
+    outFile = config.subject+'_'+prefix+config.fmriRun+'_-'+space+'_prepro_'+rstring
     if config.isCifti:
         # write to text file
         np.savetxt(op.join(outDir,outFile+'.tsv'),data, delimiter='\t')
@@ -3101,9 +3105,9 @@ def runPipelinePar(launchSubproc=False,overwriteFC=False,cleanup=True,do_makeGra
     else:
         prefix = '_'+config.session if  hasattr(config,'session')  else ''
         if config.isCifti:
-            config.fmriFile = op.join(buildpath(), config.subject+prefix+'_'+config.fmriRun+'_space-'+config.surface+'_bold.dtseries.nii')
+            config.fmriFile = op.join(buildpath(), config.subject+prefix+'_'+config.fmriRun+'_'+config.surface+'_bold.dtseries.nii')
         elif config.isGifti:
-            config.fmriFile = op.join(buildpath(), config.subject+prefix+'_'+config.fmriRun+'_space-'+config.surface+'_bold.func.gii')
+            config.fmriFile = op.join(buildpath(), config.subject+prefix+'_'+config.fmriRun+'_'+config.surface+'_bold.func.gii')
         else:
             config.fmriFile = op.join(buildpath(), config.subject+prefix+'_'+config.fmriRun+'_space-'+config.space+'_desc-preproc_bold.nii.gz')
     
@@ -3473,3 +3477,7 @@ def vcorrcoef(X,y):
     # compute correlation between columns of X and y
     r = np.sum(X*y[:,np.newaxis],axis=0)
     return r
+
+
+def _parse_surface_str(surface_str):
+    return dict([x.split('-') for x in surface_str.split('_')])
