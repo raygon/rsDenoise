@@ -88,16 +88,20 @@ def main():
   ### </raygon: Aug 2, 2023; normalize surface input across fmriprep versions>
 
   ### <raygon: Aug 2, 2023; extend to csv formatted subject file>
-  subjects = np.loadtxt(args.input,dtype=str,ndmin=1)
-  if args.input.endswith('.csv'):
-    subjects = subjects[1:]
+  try:  # load from file
+    subjects = np.loadtxt(args.input,dtype=str,ndmin=1)  # paola
+    if args.input.endswith('.csv'):  # raygon
+      subjects = subjects[1:]
+  except IOError as e: # interpret the input as a single subject ID
+    subjects = [args.input,]
   # ipdb.set_trace()
   ### </raygon: Aug 2, 2023; extend to csv formatted subject file>
   if not 'sub-' in subjects[0]: subjects = np.array(['sub-' + s for s in subjects])
   config.pipelineName      = args.pipeline 
   config.Operations        = config.operationDict[config.pipelineName]
  
-  fmriRuns = ['task-rest_acq-pedj_run-1'] if 'ONRC' in config.DATADIR else ['task-rest_run-1']
+  # fmriRuns = ['task-rest_acq-pedj_run-1'] if 'ONRC' in config.DATADIR else ['task-rest_run-1']
+  fmriRuns = ['task-rest_acq-pedj_run-1'] if 'ONRC' in config.DATADIR else ['task-rest_run-1', 'task-rest_run-2', 'task-rest_run-3', 'task-rest_run-4', 'task-rest_run-5']
 
   if args.seedFolder is not None: # Compute seed FC
     if config.isCifti or config.isGifti:
@@ -113,7 +117,7 @@ def main():
             if len(sessions) > 0:
               for config.session in sessions:
                 for config.fmriRun in fmriRuns:
-                  print('Processing:',config.subject, config.session, config.fmriRun)
+                  print('Processing:',config.subject, config.session, config.fmriRun, flush=True)
                   seeds = [op.join(args.seedFolder,config.space,fpath) for fpath in os.listdir(op.join(args.seedFolder,config.space))]
                   for seedFile in seeds:
                     #print('seed:',seedFile)
